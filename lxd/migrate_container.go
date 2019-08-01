@@ -123,6 +123,9 @@ func snapshotToProtobuf(c container) *migration.Snapshot {
 func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	// Ask CRIU if this architecture/kernel/criu combination
 	// supports pre-copy (dirty memory tracking)
+	logger.Debug("youtangai/lxd/lxd/migrate_container/126: dont use pre-dump\n")
+	return false, 0 //必ずpredumpを利用しないように変更
+	/*
 	criuMigrationArgs := CriuMigrationArgs{
 		cmd:          lxc.MIGRATE_FEATURE_CHECK,
 		stateDir:     "",
@@ -174,6 +177,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	logger.Debugf("Using maximal %d iterations for pre-dumping", max_iterations)
 
 	return use_pre_dumps, max_iterations
+	*/
 }
 
 // The function readCriuStatsDump() reads the CRIU 'stats-dump' file
