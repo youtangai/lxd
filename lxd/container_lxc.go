@@ -6213,6 +6213,8 @@ type CriuMigrationArgs struct {
 	dumpDir      string
 	preDumpDir   string
 	features     lxc.CriuFeatures
+	isZanshin    bool
+	zanshinDumpPath  string
 }
 
 func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
@@ -6226,7 +6228,9 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		"actionscript": args.actionScript,
 		"predumpdir":   args.preDumpDir,
 		"features":     args.features,
-		"stop":         args.stop}
+		"stop":         args.stop,
+	    "isZanhine":    args.isZanshin,
+	    "zanshinDumpPath": args.zanshinDumpPath}
 
 	_, err := exec.LookPath("criu")
 	if err != nil {
@@ -6320,6 +6324,25 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			finalStateDir = fmt.Sprintf("%s/%s", args.stateDir, args.dumpDir)
 		}
 
+		containerName := c.name
+		if strings.HasPrefix(containerName, "zanshin") {
+			tmp := strings.Split(containerName, "-")
+			containerID := tmp[1]
+
+			zanshinPath := shared.VarPath("zanshin", containerID)
+			if _, err := os.Stat(zanshinPath); os.IsNotExist(err) { //初回
+				err := os.MkdirAll(zanshinPath, 0755)
+				if err != nil {
+					return err
+				}
+				src := finalStateDir
+				dst := filepath.Join(zanshinPath, "000")
+				if err = util.CopyDir(src, dst); err != nil {
+					return err
+				}
+			}
+		}
+
 		_, migrateErr = shared.RunCommand(
 			c.state.OS.ExecPath,
 			"forkmigrate",
@@ -6394,6 +6417,15 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		}
 
 		migrateErr = c.c.Migrate(args.cmd, opts)
+
+		if args.isZanshin {
+			src := finalStateDir
+			dst := args.zanshinDumpPath
+			err := util.CopyDir(src, dst)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	collectErr := collectCRIULogFile(c, finalStateDir, args.function, prettyCmd)

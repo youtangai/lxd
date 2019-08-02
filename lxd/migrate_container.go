@@ -123,9 +123,7 @@ func snapshotToProtobuf(c container) *migration.Snapshot {
 func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	// Ask CRIU if this architecture/kernel/criu combination
 	// supports pre-copy (dirty memory tracking)
-	logger.Debug("youtangai/lxd/lxd/migrate_container/126: dont use pre-dump\n")
-	return false, 0 //必ずpredumpを利用しないように変更
-	/*
+
 	criuMigrationArgs := CriuMigrationArgs{
 		cmd:          lxc.MIGRATE_FEATURE_CHECK,
 		stateDir:     "",
@@ -177,7 +175,6 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	logger.Debugf("Using maximal %d iterations for pre-dumping", max_iterations)
 
 	return use_pre_dumps, max_iterations
-	*/
 }
 
 // The function readCriuStatsDump() reads the CRIU 'stats-dump' file
@@ -373,11 +370,19 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
+	is_zanshin := false
+	containerName := s.container.Name()
+	if strings.HasPrefix(containerName, "zanshin") {
+		is_zanshin = true
+	}
+
 	use_pre_dumps := false
 	max_iterations := 0
-	if s.live {
+	// zanshinから始まるコンテナ名だった場合は，predumpを利用しない
+	if s.live && !is_zanshin {
 		use_pre_dumps, max_iterations = s.checkForPreDumpSupport()
 	}
+	logger.Debugf("youtangai:use_pre_dump: %t", use_pre_dumps)
 
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
@@ -610,6 +615,52 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
+			zanshinDumpPath := ""
+			// zanshinかどうか
+			if is_zanshin {
+				tmp := strings.Split(containerName, "-")
+				if len(tmp) != 2 {
+					return abort(fmt.Errorf("youtangai: zanshin bad name"))
+				}
+
+				containerID := tmp[1]
+				zanshinPath := shared.VarPath("zanshin", containerID)
+				logger.Debugf("youtangai:containerName: %s\n", containerName)
+
+				if _, err := os.Stat(zanshinPath); os.IsNotExist(err) { //初めてのzanshin
+					logger.Debug("youtangai:zanshin no prev image")
+					err := os.MkdirAll(zanshinPath, 0755) // zanshin配置ディレクトリを作成
+					if err != nil {
+						os.RemoveAll(checkpointDir)
+						return abort(err)
+					}
+					zanshinDumpPath = filepath.Join(zanshinPath, "000")
+				} else { // すでにzanshinpathが存在する場合
+					logger.Debug("youtangai:zanshin exist prev images")
+					if _, err := os.Stat(zanshinPath); os.IsNotExist(err) {
+						return abort(err)
+					}
+
+					chks, err := ioutil.ReadDir(zanshinPath)
+					if err != nil {
+						return abort(err)
+					}
+
+					latest := chks[len(chks)-1].Name()
+
+					dumpIDInt, err := strconv.Atoi(latest)
+					if err != nil {
+						return abort(err)
+					}
+					prevDumpID := strconv.Itoa(dumpIDInt)
+					preDumpDir = filepath.Join(zanshinPath, prevDumpID)
+
+					nextDumpID := strconv.Itoa(dumpIDInt+1)
+					zanshinDumpPath = filepath.Join(zanshinPath, nextDumpID)
+				}
+			}
+
+			logger.Debugf("youtangai:is_zanshin:%t, zanshinDumpPath: %s", is_zanshin, zanshinDumpPath)
 			go func() {
 				criuMigrationArgs := CriuMigrationArgs{
 					cmd:          lxc.MIGRATE_DUMP,
@@ -619,6 +670,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 					dumpDir:      "final",
 					stateDir:     checkpointDir,
 					function:     "migration",
+					isZanshin:    is_zanshin,
+					zanshinDumpPath:  zanshinDumpPath,
 				}
 
 				// Do the final CRIU dump. This is needs no special
