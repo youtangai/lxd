@@ -6213,8 +6213,7 @@ type CriuMigrationArgs struct {
 	dumpDir      string
 	preDumpDir   string
 	features     lxc.CriuFeatures
-	isZanshin    bool
-	zanshinDumpPath  string
+	isZanshin bool
 }
 
 func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
@@ -6229,8 +6228,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		"predumpdir":   args.preDumpDir,
 		"features":     args.features,
 		"stop":         args.stop,
-	    "isZanhine":    args.isZanshin,
-	    "zanshinDumpPath": args.zanshinDumpPath}
+	    "isZanshin":    args.isZanshin}
 
 	_, err := exec.LookPath("criu")
 	if err != nil {
@@ -6324,25 +6322,6 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			finalStateDir = fmt.Sprintf("%s/%s", args.stateDir, args.dumpDir)
 		}
 
-		containerName := c.name
-		if strings.HasPrefix(containerName, "zanshin") {
-			tmp := strings.Split(containerName, "-")
-			containerID := tmp[1]
-
-			zanshinPath := shared.VarPath("zanshin", containerID)
-			if _, err := os.Stat(zanshinPath); os.IsNotExist(err) { //初回
-				err := os.MkdirAll(zanshinPath, 0755)
-				if err != nil {
-					return err
-				}
-				src := finalStateDir
-				dst := filepath.Join(zanshinPath, "000")
-				if err = util.CopyDir(src, dst); err != nil {
-					return err
-				}
-			}
-		}
-
 		_, migrateErr = shared.RunCommand(
 			c.state.OS.ExecPath,
 			"forkmigrate",
@@ -6406,9 +6385,15 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			PreservesInodes: preservesInodes,
 			ActionScript:    script,
 			GhostLimit:      ghostLimit,
+			IsZanshin:       args.isZanshin,
 		}
+
 		if args.preDumpDir != "" {
-			opts.PredumpDir = fmt.Sprintf("../%s", args.preDumpDir)
+			if args.isZanshin {
+				opts.PredumpDir = args.preDumpDir
+			} else {
+				opts.PredumpDir = fmt.Sprintf("../%s", args.preDumpDir)
+			}
 		}
 
 		if !c.IsRunning() {
@@ -6416,16 +6401,9 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			args.stop = false
 		}
 
-		migrateErr = c.c.Migrate(args.cmd, opts)
+		logger.Debugf("youtangai: migrateoptions: %+v\n", opts)
 
-		if args.isZanshin {
-			src := finalStateDir
-			dst := args.zanshinDumpPath
-			err := util.CopyDir(src, dst)
-			if err != nil {
-				return err
-			}
-		}
+		migrateErr = c.c.Migrate(args.cmd, opts)
 	}
 
 	collectErr := collectCRIULogFile(c, finalStateDir, args.function, prettyCmd)
