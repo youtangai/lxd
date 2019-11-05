@@ -6404,6 +6404,8 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		logger.Debugf("youtangai: migrateoptions: %+v\n", opts)
 
 		migrateErr = c.c.Migrate(args.cmd, opts)
+
+		logger.Debugf("youtangai; migrateErr; %s", migrateErr)
 	}
 
 	collectErr := collectCRIULogFile(c, finalStateDir, args.function, prettyCmd)

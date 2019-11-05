@@ -375,6 +375,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	if strings.HasPrefix(containerName, "zanshin") {
 		is_zanshin = true
 	}
+	logger.Debugf("youtangai: is_zanshin: %t", is_zanshin)
 
 	use_pre_dumps := false
 	max_iterations := 0
@@ -504,14 +505,17 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 		checkpointDir := ""
 		latestDumpID := -1 //初回は-1となる
-		logger.Debugf("youtangai:containerName: %s\n", containerName)
+		logger.Debugf("youtangai:containerName: %s, is_zanshin: %t\n", containerName, is_zanshin)
 		if is_zanshin {
 			tmp := strings.Split(containerName, "-")
+			logger.Debugf("youtangai: tmp:%v\n", tmp)
 			if len(tmp) != 2 {
 				return abort(fmt.Errorf("youtangai: zanshin bad name"))
 			}
 			containerID := tmp[1]
 			tmpZanshinPath := filepath.Join(os.TempDir(), "zanshin", containerID)
+
+			logger.Debugf("youtangai: tmpZanshinPath: %s\n", tmpZanshinPath)
 
 			if _, err := os.Stat(tmpZanshinPath); os.IsNotExist(err) { //初回
 				checkpointDir = filepath.Join(tmpZanshinPath, "000")
@@ -528,6 +532,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				next := fmt.Sprintf("%03d", latestDumpID+1)
 				checkpointDir = filepath.Join(tmpZanshinPath, next)
 			}
+			logger.Debugf("youtangai:checkpointDir;%s\n", checkpointDir)
 			err := os.MkdirAll(checkpointDir, 0755)
 			if err != nil {
 				return abort(err)
