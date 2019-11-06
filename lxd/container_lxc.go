@@ -5041,6 +5041,7 @@ type CriuMigrationArgs struct {
 	dumpDir      string
 	preDumpDir   string
 	features     lxc.CriuFeatures
+	isZanshin bool
 }
 
 func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
@@ -5054,7 +5055,8 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		"actionscript": args.actionScript,
 		"predumpdir":   args.preDumpDir,
 		"features":     args.features,
-		"stop":         args.stop}
+		"stop":         args.stop,
+	    "isZanshin":    args.isZanshin}
 
 	_, err := exec.LookPath("criu")
 	if err != nil {
@@ -5211,9 +5213,15 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			PreservesInodes: preservesInodes,
 			ActionScript:    script,
 			GhostLimit:      ghostLimit,
+			IsZanshin:       args.isZanshin,
 		}
+
 		if args.preDumpDir != "" {
-			opts.PredumpDir = fmt.Sprintf("../%s", args.preDumpDir)
+			if args.isZanshin {
+				opts.PredumpDir = args.preDumpDir
+			} else {
+				opts.PredumpDir = fmt.Sprintf("../%s", args.preDumpDir)
+			}
 		}
 
 		if !c.IsRunning() {
@@ -5221,7 +5229,11 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			args.stop = false
 		}
 
+		logger.Debugf("youtangai: migrateoptions: %+v\n", opts)
+
 		migrateErr = c.c.Migrate(args.cmd, opts)
+
+		logger.Debugf("youtangai; migrateErr; %s", migrateErr)
 	}
 
 	collectErr := collectCRIULogFile(c, finalStateDir, args.function, prettyCmd)

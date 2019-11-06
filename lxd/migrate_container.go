@@ -125,6 +125,7 @@ func snapshotToProtobuf(c Instance) *migration.Snapshot {
 func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	// Ask CRIU if this architecture/kernel/criu combination
 	// supports pre-copy (dirty memory tracking)
+
 	criuMigrationArgs := CriuMigrationArgs{
 		cmd:          lxc.MIGRATE_FEATURE_CHECK,
 		stateDir:     "",
@@ -390,11 +391,20 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 		}
 	}
 
+	is_zanshin := false
+	containerName := s.container.Name()
+	if strings.HasPrefix(containerName, "zanshin") {
+		is_zanshin = true
+	}
+	logger.Debugf("youtangai: is_zanshin: %t", is_zanshin)
+
 	use_pre_dumps := false
 	max_iterations := 0
-	if s.live {
+	// zanshinから始まるコンテナ名だった場合は，predumpを利用しない
+	if s.live && !is_zanshin {
 		use_pre_dumps, max_iterations = s.checkForPreDumpSupport()
 	}
+	logger.Debugf("youtangai:use_pre_dump: %t", use_pre_dumps)
 
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
@@ -514,10 +524,48 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 			return abort(fmt.Errorf("Formats other than criu rsync not understood"))
 		}
 
-		checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
-		if err != nil {
-			return abort(err)
+		checkpointDir := ""
+		latestDumpID := -1 //初回は-1となる
+		logger.Debugf("youtangai:containerName: %s, is_zanshin: %t\n", containerName, is_zanshin)
+		if is_zanshin {
+			tmp := strings.Split(containerName, "-")
+			logger.Debugf("youtangai: tmp:%v\n", tmp)
+			if len(tmp) != 2 {
+				return abort(fmt.Errorf("youtangai: zanshin bad name"))
+			}
+			containerID := tmp[1]
+			tmpZanshinPath := filepath.Join(os.TempDir(), "zanshin", containerID)
+
+			logger.Debugf("youtangai: tmpZanshinPath: %s\n", tmpZanshinPath)
+
+			if _, err := os.Stat(tmpZanshinPath); os.IsNotExist(err) { //初回
+				checkpointDir = filepath.Join(tmpZanshinPath, "000")
+			} else { //初回でない
+				files, err := ioutil.ReadDir(tmpZanshinPath)
+				if err != nil {
+					return abort(err)
+				}
+				latest := files[len(files)-1].Name()
+				latestDumpID, err = strconv.Atoi(latest)
+				if err != nil {
+					return abort(err)
+				}
+				next := fmt.Sprintf("%03d", latestDumpID+1)
+				checkpointDir = filepath.Join(tmpZanshinPath, next)
+			}
+			logger.Debugf("youtangai:checkpointDir;%s\n", checkpointDir)
+			err := os.MkdirAll(checkpointDir, 0755)
+			if err != nil {
+				return abort(err)
+			}
+		} else {
+			checkpointDir, err = ioutil.TempDir("", "lxd_checkpoint_")
+			if err != nil {
+				return abort(err)
+			}
 		}
+
+		logger.Debugf("youtangai:checkpointdir:%s", checkpointDir)
 
 		if util.RuntimeLiblxcVersionAtLeast(2, 0, 4) {
 			/* What happens below is slightly convoluted. Due to various
@@ -627,6 +675,12 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 				return abort(err)
 			}
 
+			if latestDumpID != -1 { // すでにzanshinpathが存在する場合
+				logger.Debug("youtangai:zanshin exist prev images")
+				preDumpDir = fmt.Sprintf("../../%03d/final", latestDumpID)
+			}
+
+			logger.Debugf("youtangai:is_zanshin:%t, zanshinDumpPath: %s, predumppath: %s", is_zanshin, checkpointDir, preDumpDir)
 			go func() {
 				criuMigrationArgs := CriuMigrationArgs{
 					cmd:          lxc.MIGRATE_DUMP,
@@ -636,17 +690,21 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 					dumpDir:      "final",
 					stateDir:     checkpointDir,
 					function:     "migration",
+					isZanshin:    is_zanshin,
 				}
 
 				// Do the final CRIU dump. This is needs no special
 				// handling if pre-dumps are used or not
 				dumpSuccess <- c.Migrate(&criuMigrationArgs)
-				os.RemoveAll(checkpointDir)
+				if !is_zanshin {
+					os.RemoveAll(checkpointDir)
+				}
 			}()
 
 			select {
 			/* the checkpoint failed, let's just abort */
 			case err = <-dumpSuccess:
+				os.RemoveAll(checkpointDir)
 				return abort(err)
 			/* the dump finished, let's continue on to the restore */
 			case <-dumpDone:
@@ -1037,13 +1095,42 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 
 		if live {
 			var err error
-			imagesDir, err = ioutil.TempDir("", "lxd_restore_")
-			if err != nil {
-				restore <- err
-				return
-			}
 
-			defer os.RemoveAll(imagesDir)
+			containerName := c.src.container.Name()
+			isZanshin := strings.HasPrefix(containerName, "zanshin")
+			if isZanshin {
+				tmp := strings.Split(containerName, "-")
+				containerID := tmp[1]
+				tmpZanshinPath := filepath.Join(os.TempDir(), "zanshin", containerID)
+				if _, err = os.Stat(tmpZanshinPath); os.IsNotExist(err) {
+					imagesDir = filepath.Join(tmpZanshinPath, "000")
+				} else {
+					files, err := ioutil.ReadDir(tmpZanshinPath)
+					if err != nil {
+						restore <- err
+						return
+					}
+
+					latestDumpID, err := strconv.Atoi(files[len(files)-1].Name())
+					if err != nil {
+						restore <- err
+						return
+					}
+					imagesDir = filepath.Join(tmpZanshinPath, fmt.Sprintf("%03d", latestDumpID+1))
+				}
+				err = os.MkdirAll(imagesDir, 0755)
+				if err != nil {
+					restore <- err
+					return
+				}
+			} else {
+				imagesDir, err = ioutil.TempDir("", "lxd_restore_")
+				if err != nil {
+					restore <- err
+					return
+				}
+				defer os.RemoveAll(imagesDir)
+			}
 
 			var criuConn *websocket.Conn
 			if c.push {

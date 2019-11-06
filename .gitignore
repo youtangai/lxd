@@ -1,3 +1,6 @@
+.idea
+install.sh
+
 *.swp
 po/*.mo
 po/*.po~

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -72,9 +73,15 @@ func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
 	os.Stdout.Close()
 	os.Stderr.Close()
 
+	isZanshin := false
+	if strings.HasPrefix(name, "zanshin") {
+		isZanshin = true
+	}
+
 	return d.Migrate(lxc.MIGRATE_RESTORE, lxc.MigrateOptions{
 		Directory:       imagesDir,
 		Verbose:         true,
 		PreservesInodes: preservesInodes,
+		IsZanshin:       isZanshin,
 	})
 }

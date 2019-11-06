@@ -54,6 +54,7 @@ func (s *OS) initDirs() error {
 		{filepath.Join(s.VarDir, "shmounts"), 0711},
 		{filepath.Join(s.VarDir, "snapshots"), 0700},
 		{filepath.Join(s.VarDir, "storage-pools"), 0711},
+		{filepath.Join(os.TempDir(), "zanshin"), 0755},
 	}
 
 	for _, dir := range dirs {
