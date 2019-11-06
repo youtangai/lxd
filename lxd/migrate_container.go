@@ -392,7 +392,7 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 	}
 
 	is_zanshin := false
-	containerName := s.container.Name()
+	containerName := c.Name()
 	if strings.HasPrefix(containerName, "zanshin") {
 		is_zanshin = true
 	}
@@ -1096,7 +1096,7 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 		if live {
 			var err error
 
-			containerName := c.src.container.Name()
+			containerName := ct.Name()
 			isZanshin := strings.HasPrefix(containerName, "zanshin")
 			if isZanshin {
 				tmp := strings.Split(containerName, "-")
