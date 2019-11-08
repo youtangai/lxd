@@ -185,6 +185,9 @@ func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(
 		return err
 	}
 
+	logger.Debugf("youtangai: rsync path: %s", cmd.Path)
+	logger.Debugf("youtangai: rsync args: %s", cmd.Args)
+
 	if dataSocket != nil {
 		defer dataSocket.Close()
 	}
