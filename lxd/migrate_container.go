@@ -1129,7 +1129,7 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 					restore <- err
 					return
 				}
-				defer os.RemoveAll(imagesDir)
+				//defer os.RemoveAll(imagesDir)
 			}
 
 			var criuConn *websocket.Conn
