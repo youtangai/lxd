@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/lxc/lxd/shared/logger"
 	"os"
 	"strconv"
 	"strings"
@@ -79,7 +78,7 @@ func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
 		isZanshin = true
 	}
 
-	logger.Debugf("youtangai: iszanshin:%t, name:%s, lxcpath:%s, configpath:%s, imagedir:%s", isZanshin, name, lxcpath, configPath, imagesDir)
+	fmt.Printf("youtangai: iszanshin:%t, name:%s, lxcpath:%s, configpath:%s, imagedir:%s", isZanshin, name, lxcpath, configPath, imagesDir)
 
 	return d.Migrate(lxc.MIGRATE_RESTORE, lxc.MigrateOptions{
 		Directory:       imagesDir,
