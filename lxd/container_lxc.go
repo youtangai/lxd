@@ -5168,6 +5168,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 				return err
 			}
 		}
+		logger.Debugf("youtangai: migrateErr: %v", migrateErr)
 	} else if args.cmd == lxc.MIGRATE_FEATURE_CHECK {
 		err := c.initLXC(true)
 		if err != nil {
