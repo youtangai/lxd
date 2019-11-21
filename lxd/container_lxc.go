@@ -5150,9 +5150,11 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			finalStateDir = fmt.Sprintf("%s/%s", args.stateDir, args.dumpDir)
 		}
 
-		_, migrateErr = shared.RunCommand(
+		var stdout string
+		stdout, migrateErr = shared.RunCommand(
 			c.state.OS.ExecPath,
 			"forkmigrate",
+			"-d",
 			c.name,
 			c.state.OS.LxcPath,
 			configPath,
@@ -5169,6 +5171,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			}
 		}
 		logger.Debugf("youtangai: migrateErr: %v", migrateErr)
+		logger.Debugf("youtangai: forkmigrate stdout: %s", stdout)
 	} else if args.cmd == lxc.MIGRATE_FEATURE_CHECK {
 		err := c.initLXC(true)
 		if err != nil {
