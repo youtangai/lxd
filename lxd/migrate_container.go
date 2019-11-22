@@ -1051,6 +1051,7 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 			} else {
 				snapshots = header.Snapshots
 			}
+			logger.Debugf("youtangai: snapshots: %+v", snapshots)
 
 			var fsConn *websocket.Conn
 			if c.push {
@@ -1077,6 +1078,7 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 				RsyncFeatures: rsyncFeatures,
 				Snapshots:     snapshots,
 			}
+			logger.Debugf("youtangai: fstransfer arg: %+v", args)
 
 			err = mySink(fsConn, migrateOp, args)
 			if err != nil {
