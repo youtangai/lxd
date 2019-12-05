@@ -122,6 +122,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		saveData["host_name"] = NetworkRandomDevName("veth")
 	}
 
+	/* youtangi dont need vm handling
 	var peerName string // Only used with containers, empty for VMs.
 
 	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
@@ -131,6 +132,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
 		err = networkCreateTap(saveData["host_name"])
 	}
+	*/
 
 	if err != nil {
 		return nil, err
@@ -172,9 +174,10 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
 		{Key: "name", Value: d.config["name"]},
-		{Key: "type", Value: "phys"},
+		{Key: "type", Value: "veth"},
 		{Key: "flags", Value: "up"},
-		{Key: "link", Value: peerName},
+		{Key: "veth.mode", Value: "bridge"},
+		{Key: "link", Value: d.config["parent"]},
 	}
 
 	if d.instance.Type() == instancetype.VM {
