@@ -116,6 +116,8 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	logger.Debugf("youtangai: nic_bridged: d.config %+v", d.config)
+
 	saveData := make(map[string]string)
 	saveData["host_name"] = d.config["host_name"]
 	if saveData["host_name"] == "" {
@@ -126,7 +128,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
 	if d.instance.Type() == instancetype.Container {
-		peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
+		//peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
 	} else if d.instance.Type() == instancetype.VM {
 		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
 		err = networkCreateTap(saveData["host_name"])
@@ -137,6 +139,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	/*
 	// Apply and host-side limits and routes.
 	err = networkSetupHostVethDevice(d.config, nil, saveData)
 	if err != nil {
@@ -164,6 +167,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		NetworkRemoveInterface(saveData["host_name"])
 		return nil, err
 	}
+	*/
 
 	err = d.volatileSet(saveData)
 	if err != nil {

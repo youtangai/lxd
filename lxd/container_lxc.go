@@ -1492,6 +1492,8 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig deviceConfig.Dev
 		return nil, err
 	}
 
+	logger.Debugf("youtangai: deviceStart: runConf %+v, isRunning: %t", runConf, isRunning)
+
 	// If runConf supplied, perform any container specific setup of device.
 	if runConf != nil {
 		// Shift device file ownership if needed before mounting into container.
@@ -1606,6 +1608,8 @@ func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, netIF []dev
 	if err != nil {
 		return err
 	}
+
+	logger.Debugf("youtangai: deviceAttachNIC: source %s destination: %s", devName, configCopy["name"])
 
 	// Add the interface to the container.
 	err = c.c.AttachInterface(devName, configCopy["name"])
