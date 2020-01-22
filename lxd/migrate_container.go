@@ -1219,13 +1219,40 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 
 		if live {
 			var err error
-			imagesDir, err = ioutil.TempDir("", "lxd_restore_")
-			if err != nil {
-				restore <- err
-				return
+			ct := c.src.instance.(*containerLXC)
+			ctName := ct.Name()
+			ctPath := fmt.Sprintf("/tmp/%s", ctName)
+			if _, err := os.Stat(ctPath); os.IsNotExist(err) { //first time
+				err := os.Mkdir(ctPath, 0777)
+				if err != nil {
+					restore <- err
+					return
+				}
+				imagesDir = filepath.Join(ctPath, "000")
+			} else {
+				entries, err := ioutil.ReadDir(ctPath)
+				if err != nil {
+					restore <- err
+					return
+				}
+
+				latestDirName := entries[len(entries)-1].Name()
+				latestDumpId, err := strconv.Atoi(latestDirName)
+				if err != nil {
+					restore <- err
+					return
+				}
+				nextDumpId := fmt.Sprintf("%03d", latestDumpId)
+				imagesDir = filepath.Join(ctPath, nextDumpId)
 			}
 
-			defer os.RemoveAll(imagesDir)
+			//imagesDir, err = ioutil.TempDir("", "lxd_restore_")
+			//if err != nil {
+			//	restore <- err
+			//	return
+			//}
+
+			//defer os.RemoveAll(imagesDir)
 
 			var criuConn *websocket.Conn
 			if c.push {
@@ -1234,40 +1261,40 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				criuConn = c.src.criuConn
 			}
 
-			sync := &migration.MigrationSync{
-				FinalPreDump: proto.Bool(false),
-			}
+			//sync := &migration.MigrationSync{
+			//	FinalPreDump: proto.Bool(false),
+			//}
 
-			if respHeader.GetPredump() {
-				for !sync.GetFinalPreDump() {
-					logger.Debugf("About to receive rsync")
-					// Transfer a CRIU pre-dump.
-					err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
-					if err != nil {
-						restore <- err
-						return
-					}
-					logger.Debugf("Done receiving from rsync")
-
-					logger.Debugf("About to receive header")
-					// Check if this was the last pre-dump.
-					// Only the FinalPreDump element if of interest.
-					mtype, data, err := criuConn.ReadMessage()
-					if err != nil {
-						restore <- err
-						return
-					}
-					if mtype != websocket.BinaryMessage {
-						restore <- err
-						return
-					}
-					err = proto.Unmarshal(data, sync)
-					if err != nil {
-						restore <- err
-						return
-					}
-				}
-			}
+			//if respHeader.GetPredump() {
+			//	for !sync.GetFinalPreDump() {
+			//		logger.Debugf("About to receive rsync")
+			//		// Transfer a CRIU pre-dump.
+			//		err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
+			//		if err != nil {
+			//			restore <- err
+			//			return
+			//		}
+			//		logger.Debugf("Done receiving from rsync")
+			//
+			//		logger.Debugf("About to receive header")
+			//		// Check if this was the last pre-dump.
+			//		// Only the FinalPreDump element if of interest.
+			//		mtype, data, err := criuConn.ReadMessage()
+			//		if err != nil {
+			//			restore <- err
+			//			return
+			//		}
+			//		if mtype != websocket.BinaryMessage {
+			//			restore <- err
+			//			return
+			//		}
+			//		err = proto.Unmarshal(data, sync)
+			//		if err != nil {
+			//			restore <- err
+			//			return
+			//		}
+			//	}
+			//}
 
 			// Final CRIU dump.
 			err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
