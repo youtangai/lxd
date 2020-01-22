@@ -443,10 +443,11 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	// Add predump info to source header.
 	offerUsePreDumps := false
-	maxDumpIterations := 0
-	if s.live {
-		offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
-	}
+	// youtangai dont predump
+	//maxDumpIterations := 0
+	//if s.live {
+	//	offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
+	//}
 
 	offerHeader.Predump = proto.Bool(offerUsePreDumps)
 
@@ -575,10 +576,38 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			return abort(fmt.Errorf("Formats other than criu rsync not understood"))
 		}
 
-		checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
-		if err != nil {
-			return abort(err)
+		var checkpointDir string
+		var preDumpDir string
+
+		ctName := ct.Name()
+		ctPath := fmt.Sprintf("/tmp/%s", ctName)
+		if _, err := os.Stat(ctPath); os.IsNotExist(err) { //first time
+			err := os.Mkdir(ctPath, 0777)
+			if err != nil {
+				return abort(fmt.Errorf("failed checkpoint create dir %s", ctPath))
+			}
+			checkpointDir = filepath.Join(ctPath, "000")
+			preDumpDir = ""
+		} else {
+			entries, err := ioutil.ReadDir(ctPath)
+			if err != nil {
+				return abort(err)
+			}
+
+			latestDirName := entries[len(entries)-1].Name()
+			latestDumpId, err := strconv.Atoi(latestDirName)
+			if err != nil {
+				return abort(err)
+			}
+			nextDumpId := fmt.Sprintf("%03d", latestDumpId)
+			checkpointDir = filepath.Join(ctPath, nextDumpId)
+			preDumpDir = filepath.Join(ctPath, latestDirName, "final")
 		}
+
+		//checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
+		//if err != nil {
+		//	return abort(err)
+		//}
 
 		if util.RuntimeLiblxcVersionAtLeast(2, 0, 4) {
 			// What happens below is slightly convoluted. Due to various complications
@@ -645,38 +674,39 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				return abort(err)
 			}
 
-			preDumpCounter := 0
-			preDumpDir := ""
+			//preDumpCounter := 0
+			//preDumpDir := ""
 
 			// Check if the other side knows about pre-dumping and the associated
 			// rsync protocol.
 			if respHeader.GetPredump() {
-				logger.Debugf("The other side does support pre-copy")
-				final := false
-				for !final {
-					preDumpCounter++
-					if preDumpCounter < maxDumpIterations {
-						final = false
-					} else {
-						final = true
-					}
-					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
-					loopArgs := preDumpLoopArgs{
-						checkpointDir: checkpointDir,
-						bwlimit:       rsyncBwlimit,
-						preDumpDir:    preDumpDir,
-						dumpDir:       dumpDir,
-						final:         final,
-						rsyncFeatures: rsyncFeatures,
-					}
-					final, err = s.preDumpLoop(&loopArgs)
-					if err != nil {
-						os.RemoveAll(checkpointDir)
-						return abort(err)
-					}
-					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
-					preDumpCounter++
-				}
+				//logger.Debugf("The other side does support pre-copy")
+				//final := false
+				//for !final {
+				//	preDumpCounter++
+				//	if preDumpCounter < maxDumpIterations {
+				//		final = false
+				//	} else {
+				//		final = true
+				//	}
+				//	dumpDir := fmt.Sprintf("%03d", preDumpCounter)
+				//	loopArgs := preDumpLoopArgs{
+				//		checkpointDir: checkpointDir,
+				//		bwlimit:       rsyncBwlimit,
+				//		preDumpDir:    preDumpDir,
+				//		dumpDir:       dumpDir,
+				//		final:         final,
+				//		rsyncFeatures: rsyncFeatures,
+				//	}
+				//	final, err = s.preDumpLoop(&loopArgs)
+				//	if err != nil {
+				//		os.RemoveAll(checkpointDir)
+				//		return abort(err)
+				//	}
+				//	preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
+				//	preDumpCounter++
+				//}
+				logger.Debugf("The other side support pre-copy")
 			} else {
 				logger.Debugf("The other side does not support pre-copy")
 			}
@@ -701,7 +731,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				// Do the final CRIU dump. This is needs no special handling if
 				// pre-dumps are used or not.
 				dumpSuccess <- ct.Migrate(&criuMigrationArgs)
-				os.RemoveAll(checkpointDir)
+				//os.RemoveAll(checkpointDir)
 			}()
 
 			select {
@@ -736,7 +766,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		// However assuming we're network bound, there's really no reason to do these in.
 		// parallel. In the future when we're using p.haul's protocol, it will make sense
 		// to do these in parallel.
-		ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
+		ctName, _, _ = shared.InstanceGetParentAndSnapshotName(s.instance.Name())
 		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, rsyncFeatures, rsyncBwlimit, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
