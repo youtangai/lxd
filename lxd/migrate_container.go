@@ -604,6 +604,11 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			preDumpDir = filepath.Join(ctPath, latestDirName, "final")
 		}
 
+		err := os.Mkdir(checkpointDir, 0777)
+		if err != nil {
+			return abort(err)
+		}
+
 		//checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
 		//if err != nil {
 		//	return abort(err)
@@ -1244,6 +1249,12 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				}
 				nextDumpId := fmt.Sprintf("%03d", latestDumpId)
 				imagesDir = filepath.Join(ctPath, nextDumpId)
+			}
+
+			err = os.Mkdir(imagesDir, 0777)
+			if err != nil {
+				restore <- err
+				return
 			}
 
 			//imagesDir, err = ioutil.TempDir("", "lxd_restore_")
