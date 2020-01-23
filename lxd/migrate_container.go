@@ -1249,7 +1249,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 					restore <- err
 					return
 				}
-				nextDumpId := fmt.Sprintf("%03d", latestDumpId)
+				nextDumpId := fmt.Sprintf("%03d", latestDumpId+1)
 				imagesDir = filepath.Join(ctPath, nextDumpId)
 			}
 
