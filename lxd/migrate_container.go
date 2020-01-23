@@ -599,7 +599,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			if err != nil {
 				return abort(err)
 			}
-			nextDumpId := fmt.Sprintf("%03d", latestDumpId)
+			nextDumpId := fmt.Sprintf("%03d", latestDumpId+1)
 			checkpointDir = filepath.Join(ctPath, nextDumpId)
 			preDumpDir = filepath.Join(ctPath, latestDirName, "final")
 		}
