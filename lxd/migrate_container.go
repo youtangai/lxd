@@ -601,7 +601,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			}
 			nextDumpId := fmt.Sprintf("%03d", latestDumpId+1)
 			checkpointDir = filepath.Join(ctPath, nextDumpId)
-			preDumpDir = filepath.Join(ctPath, latestDirName, "final")
+			preDumpDir = filepath.Join(latestDirName, "final")
 		}
 
 		err := os.Mkdir(checkpointDir, 0777)
