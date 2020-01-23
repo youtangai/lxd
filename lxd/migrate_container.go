@@ -1228,6 +1228,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 			ctName := ct.Name()
 			ctPath := fmt.Sprintf("/tmp/%s", ctName)
 			if _, err := os.Stat(ctPath); os.IsNotExist(err) { //first time
+				logger.Debugf("youtangai %s is not exist", ctPath)
 				err := os.Mkdir(ctPath, 0777)
 				if err != nil {
 					restore <- err
@@ -1235,6 +1236,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				}
 				imagesDir = filepath.Join(ctPath, "000")
 			} else {
+				logger.Debugf("youtangai %s is exist", ctPath)
 				entries, err := ioutil.ReadDir(ctPath)
 				if err != nil {
 					restore <- err
