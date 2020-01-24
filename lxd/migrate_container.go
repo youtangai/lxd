@@ -609,6 +609,11 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			return abort(err)
 		}
 
+		err = os.Chown(checkpointDir, 1000000, 1000000)
+		if err != nil {
+			return abort(err)
+		}
+
 		//checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
 		//if err != nil {
 		//	return abort(err)
