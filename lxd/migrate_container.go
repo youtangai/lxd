@@ -737,7 +737,12 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				// pre-dumps are used or not.
 				dumpSuccess <- ct.Migrate(&criuMigrationArgs)
 				//os.RemoveAll(checkpointDir)
-				os.Chown(filepath.Join(checkpointDir, "final"), 1000000, 1000000)
+				filepath.Walk(filepath.Join(checkpointDir, "final"), func(name string, info os.FileInfo, err error) error {
+					if err == nil {
+						err = os.Chown(name, 1000000, 1000000)
+					}
+					return err
+				})
 			}()
 
 			select {
