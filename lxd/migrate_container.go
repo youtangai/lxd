@@ -785,7 +785,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		if err != nil {
 			return abort(err)
 		}
-		logger.Info("youtangai send checkpoint dir time %s", elapsed)
+		logger.Info("youtangai send checkpoint dir time %s", fmt.Sprintf("%s", elapsed))
 	}
 
 	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates
