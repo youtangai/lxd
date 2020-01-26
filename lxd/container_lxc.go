@@ -5178,8 +5178,6 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		return fmt.Errorf("Unable to perform container live migration. CRIU isn't installed")
 	}
 
-	logger.Info("Migrating container", ctxMap)
-
 	// Initialize storage interface for the container.
 	err = c.initStorage()
 	if err != nil {
