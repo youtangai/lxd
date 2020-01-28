@@ -701,7 +701,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				// Do the final CRIU dump. This is needs no special handling if
 				// pre-dumps are used or not.
 				dumpSuccess <- ct.Migrate(&criuMigrationArgs)
-				os.RemoveAll(checkpointDir)
+				//os.RemoveAll(checkpointDir)
 			}()
 
 			select {
@@ -1201,7 +1201,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				return
 			}
 
-			defer os.RemoveAll(imagesDir)
+			//defer os.RemoveAll(imagesDir)
 
 			var criuConn *websocket.Conn
 			if c.push {
