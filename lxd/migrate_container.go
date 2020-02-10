@@ -444,9 +444,9 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// Add predump info to source header.
 	offerUsePreDumps := false
 	maxDumpIterations := 0
-	if s.live {
-		offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
-	}
+	//if s.live {
+	//	offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
+	//}
 
 	offerHeader.Predump = proto.Bool(offerUsePreDumps)
 
@@ -1089,12 +1089,13 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		offerHeader.SnapshotNames = snapshotNames
 	}
 
-	if offerHeader.GetPredump() == true {
-		// If the other side wants pre-dump and if this side supports it, let's use it.
-		respHeader.Predump = proto.Bool(true)
-	} else {
-		respHeader.Predump = proto.Bool(false)
-	}
+	//if offerHeader.GetPredump() == true {
+	//	// If the other side wants pre-dump and if this side supports it, let's use it.
+	//	respHeader.Predump = proto.Bool(true)
+	//} else {
+	//	respHeader.Predump = proto.Bool(false)
+	//}
+	respHeader.Predump = proto.Bool(false)
 
 	// Get rsync options from sender, these are passed into mySink function as part of
 	// MigrationSinkArgs below.
