@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
@@ -737,10 +738,13 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		// parallel. In the future when we're using p.haul's protocol, it will make sense
 		// to do these in parallel.
 		ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
+		start := time.Now()
 		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, rsyncFeatures, rsyncBwlimit, state.OS.ExecPath)
+		elapsed := time.Since(start)
 		if err != nil {
 			return abort(err)
 		}
+		logger.Info("youtangai send checkpoint dir time %s", elapsed)
 	}
 
 	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates
